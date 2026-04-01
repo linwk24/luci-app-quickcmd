@@ -1,0 +1,125 @@
+<div class="cbi-section">
+	<table class="cbi-section-table" id="quickcmd-table">
+		<tr class="cbi-section-table-titles">
+			<th class="cbi-section-table-cell"><%=translate("名称")%></th>
+			<th class="cbi-section-table-cell"><%=translate("命令")%></th>
+			<th class="cbi-section-table-cell"><%=translate("描述")%></th>
+			<th class="cbi-section-table-cell" style="width:200px"><%=translate("操作")%></th>
+		</tr>
+		<%
+			local rowcnt = 0
+			for i, s in ipairs(self:cfgsections()) do
+				rowcnt = i
+				local name = self.map:get(s, "name") or translate("未命名")
+				local command = self.map:get(s, "command") or ""
+				local desc = self.map:get(s, "description") or ""
+				local cmd_esc = string.gsub(command, "'", "\\'")
+		%>
+		<tr class="cbi-section-table-row" id="cbi-quickcmd-<%=s%>">
+			<td class="cbi-section-table-cell"><%=name%></td>
+			<td class="cbi-section-table-cell"><code><%=command%></code></td>
+			<td class="cbi-section-table-cell"><%=desc%></td>
+			<td class="cbi-section-table-cell">
+				<input type="button" value="<%=translate("执行")%>" class="cbi-button cbi-button-apply" onclick="quickcmdRun('<%=s%>', '<%=name%>', '<%=cmd_esc%>')" />
+				<input type="button" value="<%=translate("删除")%>" class="cbi-button cbi-button-remove" onclick="quickcmdDel('<%=s%>')" />
+			</td>
+		</tr>
+		<% end %>
+		<% if rowcnt == 0 then %>
+		<tr>
+			<td colspan="4" style="text-align:center;color:#666;"><%=translate("暂无命令，请点击下方添加按钮")%></td>
+		</tr>
+		<% end %>
+	</table>
+	<div style="margin-top:10px">
+		<input type="button" value="<%=translate("添加命令")%>" class="cbi-button cbi-button-add" onclick="quickcmdAdd()" />
+	</div>
+</div>
+
+<script>
+function quickcmdRun(id, name, cmd) {
+	if (!confirm('确认执行命令？\n\n名称: ' + name + '\n命令: ' + cmd)) {
+		return;
+	}
+	
+	var btn = event.target;
+	btn.disabled = true;
+	btn.value = '<%=translate("执行中...")%>';
+	
+	var xhr = new XMLHttpRequest();
+	xhr.open('POST', '<%=luci.dispatcher.build_url("admin/system/quickcmd/exec")%>', true);
+	xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+	xhr.onreadystatechange = function() {
+		if (xhr.readyState === 4) {
+			btn.disabled = false;
+			btn.value = '<%=translate("执行")%>';
+			
+			try {
+				var res = JSON.parse(xhr.responseText);
+				if (res.code === 0) {
+					alert('<%=translate("执行成功")%>\n\n输出:\n' + res.output);
+				} else {
+					alert('<%=translate("执行失败")%>: ' + (res.output || res.error));
+				}
+			} catch(e) {
+				alert('<%=translate("请求失败")%>');
+			}
+		}
+	};
+	xhr.send('id=' + encodeURIComponent(id));
+}
+
+function quickcmdDel(id) {
+	if (!confirm('确认删除此命令？')) {
+		return;
+	}
+	
+	var xhr = new XMLHttpRequest();
+	xhr.open('POST', '<%=luci.dispatcher.build_url("admin/system/quickcmd/delete")%>', true);
+	xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+	xhr.onreadystatechange = function() {
+		if (xhr.readyState === 4) {
+			try {
+				var res = JSON.parse(xhr.responseText);
+				if (res.success) {
+					location.reload();
+				} else {
+					alert('<%=translate("删除失败")%>');
+				}
+			} catch(e) {
+				alert('<%=translate("请求失败")%>');
+			}
+		}
+	};
+	xhr.send('id=' + encodeURIComponent(id));
+}
+
+function quickcmdAdd() {
+	var name = prompt('<%=translate("请输入命令名称")%>');
+	if (!name) return;
+	
+	var command = prompt('<%=translate("请输入命令")%>');
+	if (!command) return;
+	
+	var desc = prompt('<%=translate("请输入描述（可选）")%>') || '';
+	
+	var xhr = new XMLHttpRequest();
+	xhr.open('POST', '<%=luci.dispatcher.build_url("admin/system/quickcmd/add")%>', true);
+	xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+	xhr.onreadystatechange = function() {
+		if (xhr.readyState === 4) {
+			try {
+				var res = JSON.parse(xhr.responseText);
+				if (res.success) {
+					location.reload();
+				} else {
+					alert('<%=translate("添加失败")%>: ' + (res.error || ''));
+				}
+			} catch(e) {
+				alert('<%=translate("请求失败")%>');
+			}
+		}
+	};
+	xhr.send('name=' + encodeURIComponent(name) + '&command=' + encodeURIComponent(command) + '&description=' + encodeURIComponent(desc));
+}
+</script>
