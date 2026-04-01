@@ -1,0 +1,12 @@
+config quickcmd 'global'
+	option enable '1'
+
+config command
+	option name '查看时间'
+	option command 'date'
+	option description '显示当前系统时间'
+
+config command
+	option name '内存状态'
+	option command 'free -m'
+	option description '查看内存使用情况'
